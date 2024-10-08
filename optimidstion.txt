@@ -1,33 +1,135 @@
-private List<Particle> InitializeSwarm()
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
+using System.Drawing;
+using System.Threading;
+
+public class PSO
 {
-    var swarm = new List<Particle>();
-    for (int i = 0; i < swarmSize; i++)
+    private const int swarmSize = 20;        // Number of particles in the swarm
+    private const int maxIterations = 1000;  // Maximum number of iterations for the PSO
+    private const int passwordLength = 4;    // Length of the password to guess
+    private readonly char[] targetPassword;  // The password to guess
+    private readonly Random random = new Random(); // Random number generator
+    private readonly Form form;              // Windows Form for visualization
+    private List<Label> particleLabels = new List<Label>();  // Labels for particle visualization
+
+    // Constructor
+    public PSO(Form form, string password)
     {
-        var particle = new Particle(passwordLength);
-        for (int j = 0; j < passwordLength; j++)
+        this.form = form;
+        targetPassword = password.ToCharArray();
+    }
+
+    // Particle class represents an individual in the swarm
+    public class Particle
+    {
+        public char[] Position;        // Current guess for the password (current solution)
+        public char[] BestPosition;    // Personal best guess
+        public double Fitness;         // Current fitness (how close the guess is to the target)
+        public double BestFitness;     // Best fitness (personal best)
+        
+        // Constructor for initializing the particle
+        public Particle(int length)
         {
-            particle.Position[j] = GetRandomCharacter();
+            Position = new char[length];
+            BestPosition = new char[length];
         }
-        particle.BestPosition = (char[])particle.Position.Clone();
-        particle.Fitness = ComputeFitness(particle.Position);
-        particle.BestFitness = particle.Fitness;
-        swarm.Add(particle);
+    }
 
-        // Create and configure label for each particle
-        Label particleLabel = new Label
+    // Initialize the swarm with random positions (guesses)
+    private List<Particle> InitializeSwarm()
+    {
+        var swarm = new List<Particle>();
+        for (int i = 0; i < swarmSize; i++)
         {
-            Text = new string(particle.Position),
-            Font = new Font("Consolas", 12),
-            Location = new Point(10, 20 + (i * 25))
-        };
+            var particle = new Particle(passwordLength);
 
-        // Safely add the label to the form's controls using Invoke
+            // Initialize each particle with random characters as their position
+            for (int j = 0; j < passwordLength; j++)
+            {
+                particle.Position[j] = GetRandomCharacter();
+            }
+
+            // Set the personal best to the current position (initial guess)
+            particle.BestPosition = (char[])particle.Position.Clone();
+
+            // Calculate fitness for the initial position
+            particle.Fitness = ComputeFitness(particle.Position);
+            particle.BestFitness = particle.Fitness;
+
+            // Add particle to the swarm
+            swarm.Add(particle);
+
+            // Create and configure label for each particle
+            Label particleLabel = new Label
+            {
+                Text = new string(particle.Position),
+                Font = new Font("Consolas", 12),
+                Location = new Point(10, 20 + (i * 25))
+            };
+
+            // Safely add the label to the form's controls using Invoke
+            form.Invoke((Action)(() =>
+            {
+                form.Controls.Add(particleLabel);
+            }));
+
+            // Store the label for later updates
+            particleLabels.Add(particleLabel);
+        }
+        return swarm;
+    }
+
+    // Method to compute the fitness of a particle's position (how close it is to the target password)
+    private double ComputeFitness(char[] position)
+    {
+        int correctChars = 0;
+        for (int i = 0; i < passwordLength; i++)
+        {
+            if (position[i] == targetPassword[i])
+            {
+                correctChars++;
+            }
+        }
+        return (double)correctChars / passwordLength; // Return fitness as a fraction
+    }
+
+    // Method to get a random character (alphanumeric)
+    private char GetRandomCharacter()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        return chars[random.Next(chars.Length)];
+    }
+
+    // Update the particle's position and fitness
+    private void UpdateParticle(Particle particle, Label particleLabel)
+    {
+        for (int i = 0; i < passwordLength; i++)
+        {
+            // Randomly choose whether to move towards personal best or global best
+            if (random.NextDouble() < 0.5)
+            {
+                particle.Position[i] = particle.BestPosition[i]; // Move towards personal best
+            }
+            else
+            {
+                particle.Position[i] = GetRandomCharacter(); // Random exploration
+            }
+        }
+
+        // Recalculate fitness after position update
+        particle.Fitness = ComputeFitness(particle.Position);
+
+        // Update personal best if the new fitness is better
+        if (particle.Fitness > particle.BestFitness)
+        {
+            particle.BestFitness = particle.Fitness;
+            particle.BestPosition = (char[])particle.Position.Clone();
+        }
+
+        // Safely update the UI to reflect the new position and fitness
         form.Invoke((Action)(() =>
         {
-            form.Controls.Add(particleLabel);
-        }));
-
-        particleLabels.Add(particleLabel);
-    }
-    return swarm;
-}
+            particleLabel.Text = new
