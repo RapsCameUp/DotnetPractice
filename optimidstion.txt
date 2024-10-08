@@ -1,0 +1,181 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+
+public class Particle
+{
+    public char[] Position;
+    public char[] BestPosition;
+    public double Fitness;
+    public double BestFitness;
+
+    public Particle(int passwordLength)
+    {
+        Position = new char[passwordLength];
+        BestPosition = new char[passwordLength];
+    }
+}
+
+public class PSO
+{
+    private const string AlphanumericSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private Random random = new Random();
+    private string targetPassword;
+    private int swarmSize;
+    private int maxIterations;
+    private int passwordLength;
+    private Form form;
+    private List<Label> particleLabels = new List<Label>();
+
+    public PSO(string targetPassword, int swarmSize, int maxIterations, Form form)
+    {
+        this.targetPassword = targetPassword;
+        this.passwordLength = targetPassword.Length;
+        this.swarmSize = swarmSize;
+        this.maxIterations = maxIterations;
+        this.form = form;
+    }
+
+    private double ComputeFitness(char[] guess)
+    {
+        double score = 0;
+        for (int i = 0; i < guess.Length; i++)
+        {
+            if (guess[i] == targetPassword[i])
+                score++;
+        }
+        return score / guess.Length;
+    }
+
+    private char GetRandomCharacter()
+    {
+        return AlphanumericSet[random.Next(AlphanumericSet.Length)];
+    }
+
+    private List<Particle> InitializeSwarm()
+    {
+        var swarm = new List<Particle>();
+        for (int i = 0; i < swarmSize; i++)
+        {
+            var particle = new Particle(passwordLength);
+            for (int j = 0; j < passwordLength; j++)
+            {
+                particle.Position[j] = GetRandomCharacter();
+            }
+            particle.BestPosition = (char[])particle.Position.Clone();
+            particle.Fitness = ComputeFitness(particle.Position);
+            particle.BestFitness = particle.Fitness;
+            swarm.Add(particle);
+
+            // Create and place label for visualization
+            Label particleLabel = new Label();
+            particleLabel.Text = new string(particle.Position);
+            particleLabel.Font = new Font("Consolas", 12);
+            particleLabel.Location = new Point(10, 20 + (i * 25));
+            form.Controls.Add(particleLabel);
+            particleLabels.Add(particleLabel);
+        }
+        return swarm;
+    }
+
+    private void UpdateParticle(Particle particle)
+    {
+        for (int i = 0; i < passwordLength; i++)
+        {
+            if (random.NextDouble() < 0.5)
+            {
+                particle.Position[i] = particle.BestPosition[i];
+            }
+            else
+            {
+                particle.Position[i] = GetRandomCharacter();
+            }
+        }
+
+        particle.Fitness = ComputeFitness(particle.Position);
+        if (particle.Fitness > particle.BestFitness)
+        {
+            particle.BestFitness = particle.Fitness;
+            particle.BestPosition = (char[])particle.Position.Clone();
+        }
+    }
+
+    public void Run()
+    {
+        var swarm = InitializeSwarm();
+        Particle globalBestParticle = null;
+
+        for (int iteration = 0; iteration < maxIterations; iteration++)
+        {
+            for (int i = 0; i < swarmSize; i++)
+            {
+                var particle = swarm[i];
+                UpdateParticle(particle);
+
+                // Update global best
+                if (globalBestParticle == null || particle.BestFitness > globalBestParticle.BestFitness)
+                {
+                    globalBestParticle = particle;
+                }
+
+                // Update the particle's label for visualization
+                particleLabels[i].Text = new string(particle.Position);
+                particleLabels[i].BackColor = Color.FromArgb((int)(particle.Fitness * 255), 255, 255);
+
+                // Highlight the best guess
+                if (particle.Fitness == 1.0)
+                {
+                    particleLabels[i].ForeColor = Color.Green;
+                }
+                else
+                {
+                    particleLabels[i].ForeColor = Color.Black;
+                }
+            }
+
+            // Display the global best guess in the title bar
+            form.Text = $"Iteration {iteration + 1}: Best Guess = {new string(globalBestParticle.BestPosition)}, Fitness = {globalBestParticle.BestFitness * 100}%";
+
+            // Sleep for a moment to simulate real-time visualization
+            System.Threading.Thread.Sleep(500);
+
+            if (globalBestParticle.BestFitness == 1.0)
+            {
+                MessageBox.Show($"Password '{targetPassword}' guessed in {iteration + 1} iterations!");
+                break;
+            }
+        }
+    }
+}
+
+public class PasswordCrackerForm : Form
+{
+    public PasswordCrackerForm()
+    {
+        Text = "Password Cracking Simulation";
+        Width = 600;
+        Height = 800;
+
+        // Target password to be guessed
+        string targetPassword = "aB3d";  // This is the password to crack
+
+        // Initialize PSO with the target password, swarm size, and max iterations
+        PSO pso = new PSO(targetPassword, swarmSize: 30, maxIterations: 1000, form: this);
+
+        // Run the password cracking simulation
+        System.Threading.Thread passwordCrackThread = new System.Threading.Thread(pso.Run);
+        passwordCrackThread.Start();
+    }
+}
+
+class Program
+{
+    [STAThread]
+    static void Main(string[] args)
+    {
+        Application.EnableVisualStyles();
+        Application.Run(new PasswordCrackerForm());
+    }
+}
