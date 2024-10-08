@@ -1,72 +1,33 @@
-private void UpdateParticle(Particle particle, Label particleLabel)
+private List<Particle> InitializeSwarm()
 {
-    for (int i = 0; i < passwordLength; i++)
+    var swarm = new List<Particle>();
+    for (int i = 0; i < swarmSize; i++)
     {
-        if (random.NextDouble() < 0.5)
+        var particle = new Particle(passwordLength);
+        for (int j = 0; j < passwordLength; j++)
         {
-            particle.Position[i] = particle.BestPosition[i];
+            particle.Position[j] = GetRandomCharacter();
         }
-        else
-        {
-            particle.Position[i] = GetRandomCharacter();
-        }
-    }
-
-    particle.Fitness = ComputeFitness(particle.Position);
-    if (particle.Fitness > particle.BestFitness)
-    {
-        particle.BestFitness = particle.Fitness;
         particle.BestPosition = (char[])particle.Position.Clone();
-    }
+        particle.Fitness = ComputeFitness(particle.Position);
+        particle.BestFitness = particle.Fitness;
+        swarm.Add(particle);
 
-    // Safely update the UI by invoking on the main thread
-    form.Invoke((Action)(() =>
-    {
-        // Update particle label's text and background color safely
-        particleLabel.Text = new string(particle.Position);
-        particleLabel.BackColor = Color.FromArgb((int)(particle.Fitness * 255), 255, 255);
-        particleLabel.ForeColor = particle.Fitness == 1.0 ? Color.Green : Color.Black;
-    }));
-}
-
-public void Run()
-{
-    var swarm = InitializeSwarm();
-    Particle globalBestParticle = null;
-
-    for (int iteration = 0; iteration < maxIterations; iteration++)
-    {
-        for (int i = 0; i < swarmSize; i++)
+        // Create and configure label for each particle
+        Label particleLabel = new Label
         {
-            var particle = swarm[i];
-            var particleLabel = particleLabels[i];
+            Text = new string(particle.Position),
+            Font = new Font("Consolas", 12),
+            Location = new Point(10, 20 + (i * 25))
+        };
 
-            // Update the particle and its label safely
-            UpdateParticle(particle, particleLabel);
-
-            // Update global best
-            if (globalBestParticle == null || particle.BestFitness > globalBestParticle.BestFitness)
-            {
-                globalBestParticle = particle;
-            }
-        }
-
-        // Update the form's title safely
+        // Safely add the label to the form's controls using Invoke
         form.Invoke((Action)(() =>
         {
-            form.Text = $"Iteration {iteration + 1}: Best Guess = {new string(globalBestParticle.BestPosition)}, Fitness = {globalBestParticle.BestFitness * 100}%";
+            form.Controls.Add(particleLabel);
         }));
 
-        // Sleep for a moment to simulate real-time visualization
-        System.Threading.Thread.Sleep(500);
-
-        if (globalBestParticle.BestFitness == 1.0)
-        {
-            form.Invoke((Action)(() =>
-            {
-                MessageBox.Show($"Password '{targetPassword}' guessed in {iteration + 1} iterations!");
-            }));
-            break;
-        }
+        particleLabels.Add(particleLabel);
     }
+    return swarm;
 }
