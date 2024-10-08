@@ -132,4 +132,55 @@ public class PSO
         // Safely update the UI to reflect the new position and fitness
         form.Invoke((Action)(() =>
         {
-            particleLabel.Text = new
+            particleLabel.Text = new string(particle.Position); // Update particle's label text
+            particleLabel.BackColor = Color.FromArgb((int)(particle.Fitness * 255), 255, 255); // Update label color based on fitness
+            particleLabel.ForeColor = particle.Fitness == 1.0 ? Color.Green : Color.Black;      // Color green if guessed correctly
+        }));
+    }
+
+    // The main PSO loop: runs the optimization process
+    public void Run()
+    {
+        var swarm = InitializeSwarm(); // Initialize the swarm
+        Particle globalBestParticle = null; // Track the global best particle
+
+        // Run the optimization loop for a maximum number of iterations
+        for (int iteration = 0; iteration < maxIterations; iteration++)
+        {
+            // Iterate over each particle in the swarm
+            for (int i = 0; i < swarmSize; i++)
+            {
+                var particle = swarm[i];
+                var particleLabel = particleLabels[i];
+
+                // Update the particle's position and fitness
+                UpdateParticle(particle, particleLabel);
+
+                // Update the global best particle if the current particle is better
+                if (globalBestParticle == null || particle.BestFitness > globalBestParticle.BestFitness)
+                {
+                    globalBestParticle = particle;
+                }
+            }
+
+            // Safely update the form's title to show the current best guess and fitness
+            form.Invoke((Action)(() =>
+            {
+                form.Text = $"Iteration {iteration + 1}: Best Guess = {new string(globalBestParticle.BestPosition)}, Fitness = {globalBestParticle.BestFitness * 100}%";
+            }));
+
+            // Pause for a short time to visualize the process
+            Thread.Sleep(500);
+
+            // If the global best fitness is 1.0, the password has been guessed correctly
+            if (globalBestParticle.BestFitness == 1.0)
+            {
+                form.Invoke((Action)(() =>
+                {
+                    MessageBox.Show($"Password '{new string(globalBestParticle.BestPosition)}' guessed in {iteration + 1} iterations!");
+                }));
+                break;
+            }
+        }
+    }
+}
