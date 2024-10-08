@@ -1,53 +1,4 @@
 using System;
-using System.Windows.Forms;
-
-namespace PSO_TSP
-{
-    static class Program
-    {
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
-        }
-    }
-}
-
-
-
-namespace PSO_TSP
-{
-    partial class Form1
-    {
-        private System.ComponentModel.IContainer components = null;
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
-            {
-                components.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        private void InitializeComponent()
-        {
-            this.SuspendLayout();
-            // 
-            // Form1
-            // 
-            this.ClientSize = new System.Drawing.Size(800, 600);
-            this.Name = "Form1";
-            this.Text = "PSO - Traveling Salesman Problem";
-            this.ResumeLayout(false);
-        }
-    }
-}
-
-
-using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -59,11 +10,13 @@ public partial class Form1 : Form
     private PSO pso;
     private Particle bestSolution;
     private Timer timer;
+    private int iterationCount = 0;
 
     public Form1()
     {
         InitializeComponent();
 
+        // Initialize cities
         cities = new List<City>()
         {
             new City(100, 100),
@@ -74,28 +27,34 @@ public partial class Form1 : Form
             new City(600, 100)
         };
 
+        // Initialize PSO
         pso = new PSO(cities, swarmSize: 50);
-        pso.Optimize(iterations: 1000);
-        bestSolution = pso.GetBestSolution();
 
-        // Set up a timer to continuously refresh the form for real-time visualization
+        // Set up a timer to continuously run PSO optimization
         timer = new Timer();
-        timer.Interval = 500; // 500ms
+        timer.Interval = 100; // Adjust this value to speed up/slow down visualization
         timer.Tick += Timer_Tick;
         timer.Start();
     }
 
     private void Timer_Tick(object sender, EventArgs e)
     {
+        // Run one iteration of optimization
         pso.Optimize(iterations: 1);
         bestSolution = pso.GetBestSolution();
-        this.Invalidate(); // Forces the form to redraw
+        iterationCount++;
+
+        // Invalidate the form to trigger a redraw with the updated best solution
+        this.Invalidate();
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        DrawCitiesAndPath(e.Graphics, bestSolution);
+        if (bestSolution != null)
+        {
+            DrawCitiesAndPath(e.Graphics, bestSolution);
+        }
     }
 
     private void DrawCitiesAndPath(Graphics g, Particle solution)
@@ -105,6 +64,7 @@ public partial class Form1 : Form
         Font font = new Font("Arial", 10);
         Brush textBrush = new SolidBrush(Color.Blue);
 
+        // Draw cities as red dots
         for (int i = 0; i < cities.Count; i++)
         {
             City city = cities[i];
@@ -112,6 +72,7 @@ public partial class Form1 : Form
             g.DrawString($"City {i + 1}", font, textBrush, (float)city.X + 10, (float)city.Y);
         }
 
+        // Draw the optimized path between the cities
         for (int i = 0; i < solution.Position.Count - 1; i++)
         {
             City city1 = cities[solution.Position[i]];
@@ -119,163 +80,12 @@ public partial class Form1 : Form
             g.DrawLine(pen, (float)city1.X, (float)city1.Y, (float)city2.X, (float)city2.Y);
         }
 
-        // Draw line from the last city back to the first
+        // Draw the line from the last city back to the first
         City lastCity = cities[solution.Position.Last()];
         City firstCity = cities[solution.Position.First()];
         g.DrawLine(pen, (float)lastCity.X, (float)lastCity.Y, (float)firstCity.X, (float)firstCity.Y);
-    }
-}
 
-
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
-public class PSO
-{
-    private List<Particle> swarm;
-    private List<City> cities;
-    private int swarmSize;
-    private Particle globalBest;
-    private Random random = new Random();
-
-    public PSO(List<City> cities, int swarmSize)
-    {
-        this.cities = cities;
-        this.swarmSize = swarmSize;
-        swarm = new List<Particle>();
-        globalBest = null;
-
-        InitializeSwarm();
-    }
-
-    private void InitializeSwarm()
-    {
-        List<int> initialPosition = Enumerable.Range(0, cities.Count).ToList();
-        for (int i = 0; i < swarmSize; i++)
-        {
-            Particle particle = new Particle(new List<int>(initialPosition));
-            particle.Shuffle();
-            particle.Fitness = CalculateTotalDistance(particle.Position, cities);
-            particle.UpdateBestPosition();
-
-            swarm.Add(particle);
-            if (globalBest == null || particle.Fitness < globalBest.Fitness)
-            {
-                globalBest = particle;
-            }
-        }
-    }
-
-    public void Optimize(int iterations)
-    {
-        for (int iter = 0; iter < iterations; iter++)
-        {
-            foreach (var particle in swarm)
-            {
-                // Update fitness
-                particle.Fitness = CalculateTotalDistance(particle.Position, cities);
-                particle.UpdateBestPosition();
-
-                // Update global best
-                if (particle.Fitness < globalBest.Fitness)
-                {
-                    globalBest = particle;
-                }
-
-                // Perform a swap-based position update
-                for (int i = 0; i < cities.Count; i++)
-                {
-                    if (random.NextDouble() < 0.5)
-                    {
-                        int swapIdx = random.Next(cities.Count);
-                        int temp = particle.Position[i];
-                        particle.Position[i] = particle.BestPosition[swapIdx];
-                        particle.BestPosition[swapIdx] = temp;
-                    }
-                }
-            }
-        }
-    }
-
-    public Particle GetBestSolution()
-    {
-        return globalBest;
-    }
-
-    private double CalculateTotalDistance(List<int> route, List<City> cities)
-    {
-        double distance = 0;
-        for (int i = 0; i < route.Count - 1; i++)
-        {
-            distance += cities[route[i]].DistanceTo(cities[route[i + 1]]);
-        }
-        distance += cities[route[route.Count - 1]].DistanceTo(cities[route[0]]); // Return to starting point
-        return distance;
-    }
-}
-
-
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
-public class Particle
-{
-    public List<int> Position { get; set; } // The order of cities
-    public List<int> BestPosition { get; set; } // Personal best
-    public double BestFitness { get; set; } // Personal best distance
-    public double Fitness { get; set; } // Current fitness (distance)
-
-    private Random random = new Random();
-
-    public Particle(List<int> position)
-    {
-        Position = new List<int>(position);
-        BestPosition = new List<int>(position);
-        BestFitness = double.MaxValue;
-    }
-
-    public void Shuffle()
-    {
-        int n = Position.Count;
-        for (int i = 0; i < n; i++)
-        {
-            int j = random.Next(i, n);
-            var temp = Position[i];
-            Position[i] = Position[j];
-            Position[j] = temp;
-        }
-    }
-
-    public void UpdateBestPosition()
-    {
-        if (Fitness < BestFitness)
-        {
-            BestFitness = Fitness;
-            BestPosition = new List<int>(Position);
-        }
-    }
-}
-
-
-public class City
-{
-    public double X { get; set; }
-    public double Y { get; set; }
-
-    public City(double x, double y)
-    {
-        X = x;
-        Y = y;
-    }
-
-    public double DistanceTo(City other)
-    {
-        double deltaX = X - other.X;
-        double deltaY = Y - other.Y;
-        return Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+        // Display iteration count for debugging purposes
+        g.DrawString($"Iteration: {iterationCount}", font, textBrush, 10, 10);
     }
 }
