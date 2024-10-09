@@ -1,116 +1,197 @@
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
+public class City
+{
+    public int X { get; }
+    public int Y { get; }
+    
+    public City(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+}
+
+public class GeneticAlgorithmTSP
+{
+    private static Random rand = new Random();
+    private List<City> cities;
+    private List<List<int>> population = new List<List<int>>();
+    private int populationSize = 100;
+    private int generations = 500;
+    private double mutationRate = 0.01;
+    private PictureBox pictureBox;
+    private Graphics graphics;
+    
+    public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox)
+    {
+        this.cities = cities;
+        this.pictureBox = pictureBox;
+        this.graphics = pictureBox.CreateGraphics();
+        InitializePopulation();
+    }
+
+    // Initialize population with random tours
+    private void InitializePopulation()
+    {
+        for (int i = 0; i < populationSize; i++)
+        {
+            var tour = Enumerable.Range(0, cities.Count).OrderBy(x => rand.Next()).ToList();
+            population.Add(tour);
+        }
+    }
+
+    // Fitness function: inverse of the total distance
+    private double Fitness(List<int> tour)
+    {
+        double distance = 0;
+        for (int i = 0; i < tour.Count - 1; i++)
+        {
+            distance += Distance(cities[tour[i]], cities[tour[i + 1]]);
+        }
+        distance += Distance(cities[tour.Last()], cities[tour.First()]); // Return to start
+        return 1 / distance;
+    }
+
+    private double Distance(City a, City b)
+    {
+        return Math.Sqrt(Math.Pow(b.X - a.X, 2) + Math.Pow(b.Y - a.Y, 2));
+    }
+
+    // Selection: Roulette wheel selection
+    private List<int> Selection()
+    {
+        double totalFitness = population.Sum(Fitness);
+        double randomValue = rand.NextDouble() * totalFitness;
+        double cumulativeFitness = 0;
+        foreach (var individual in population)
+        {
+            cumulativeFitness += Fitness(individual);
+            if (cumulativeFitness >= randomValue)
+                return new List<int>(individual);
+        }
+        return population.Last();
+    }
+
+    // Crossover: Order crossover (OX)
+    private List<int> Crossover(List<int> parent1, List<int> parent2)
+    {
+        int start = rand.Next(cities.Count);
+        int end = rand.Next(start, cities.Count);
+
+        var child = new List<int>(new int[cities.Count]);
+        for (int i = start; i < end; i++)
+        {
+            child[i] = parent1[i];
+        }
+
+        int currentIndex = end;
+        foreach (var city in parent2)
+        {
+            if (!child.Contains(city))
+            {
+                if (currentIndex >= cities.Count)
+                    currentIndex = 0;
+                child[currentIndex++] = city;
+            }
+        }
+        return child;
+    }
+
+    // Mutation: Swap mutation
+    private void Mutate(List<int> individual)
+    {
+        if (rand.NextDouble() < mutationRate)
+        {
+            int index1 = rand.Next(cities.Count);
+            int index2 = rand.Next(cities.Count);
+            int temp = individual[index1];
+            individual[index1] = individual[index2];
+            individual[index2] = temp;
+        }
+    }
+
+    // Run the GA process
+    public void Run()
+    {
+        for (int gen = 0; gen < generations; gen++)
+        {
+            var newPopulation = new List<List<int>>();
+            for (int i = 0; i < populationSize; i++)
+            {
+                var parent1 = Selection();
+                var parent2 = Selection();
+                var child = Crossover(parent1, parent2);
+                Mutate(child);
+                newPopulation.Add(child);
+            }
+            population = newPopulation;
+
+            var bestTour = population.OrderBy(Fitness).Last();
+            double bestDistance = 1 / Fitness(bestTour);
+
+            // Update the UI with the current best solution
+            UpdateUI(bestTour, bestDistance, gen);
+        }
+    }
+
+    // Visualization: Draw the best tour
+    private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
+    {
+        graphics.Clear(Color.White); // Clear previous drawing
+        
+        // Draw cities as points
+        foreach (var city in cities)
+        {
+            graphics.FillEllipse(Brushes.Red, city.X - 5, city.Y - 5, 10, 10);
+        }
+
+        // Draw path connecting cities
+        for (int i = 0; i < bestTour.Count - 1; i++)
+        {
+            City cityA = cities[bestTour[i]];
+            City cityB = cities[bestTour[i + 1]];
+            graphics.DrawLine(Pens.Black, cityA.X, cityA.Y, cityB.X, cityB.Y);
+        }
+
+        // Connect last city to the first to complete the cycle
+        City lastCity = cities[bestTour.Last()];
+        City firstCity = cities[bestTour.First()];
+        graphics.DrawLine(Pens.Black, lastCity.X, lastCity.Y, firstCity.X, firstCity.Y);
+
+        // Update form title with current generation and best distance
+        pictureBox.Parent.Text = $"Generation: {generation}, Best Distance: {bestDistance:F2}";
+    }
+}
+
+
+
 
 public partial class Form1 : Form
 {
+    private GeneticAlgorithmTSP gaTSP;
     private List<City> cities;
-    private PSO pso;
-    private Particle bestSolution;
-    private Timer timer;
-    private int iterationCount = 0;
-    private const int maxIterationsWithoutImprovement = 500;
-    private double bestDistanceSoFar = double.MaxValue;
-    private int iterationsWithoutImprovement = 0;
-
+    
     public Form1()
     {
         InitializeComponent();
+        InitializeCities();
+    }
 
-        // Initialize cities
-        cities = new List<City>()
+    private void InitializeCities()
+    {
+        // Example cities (can be dynamic)
+        cities = new List<City>
         {
-            new City(100, 100),
-            new City(200, 100),
-            new City(300, 200),
-            new City(400, 300),
-            new City(500, 400),
-            new City(600, 100)
+            new City(100, 200),
+            new City(300, 400),
+            new City(500, 100),
+            new City(600, 300),
+            new City(200, 500)
         };
-
-        // Initialize PSO
-        pso = new PSO(cities, swarmSize: 50);
-
-        // Set up a timer to continuously run PSO optimization
-        timer = new Timer();
-        timer.Interval = 100; // Adjust this value to speed up/slow down visualization
-        timer.Tick += Timer_Tick;
-        timer.Start();
     }
 
-    private void Timer_Tick(object sender, EventArgs e)
+    private void btnStart_Click(object sender, EventArgs e)
     {
-        // Run one iteration of optimization
-        pso.Optimize(iterations: 1);
-        bestSolution = pso.GetBestSolution();
-        iterationCount++;
-
-        // Check for stopping condition
-        if (bestSolution.BestFitness < bestDistanceSoFar)
-        {
-            bestDistanceSoFar = bestSolution.BestFitness;
-            iterationsWithoutImprovement = 0;
-        }
-        else
-        {
-            iterationsWithoutImprovement++;
-        }
-
-        if (iterationsWithoutImprovement >= maxIterationsWithoutImprovement)
-        {
-            timer.Stop(); // Stop optimization if no improvement in a long time
-            MessageBox.Show($"Optimization stopped after {iterationCount} iterations. Best distance: {bestDistanceSoFar}");
-        }
-
-        // Invalidate the form to trigger a redraw with the updated best solution
-        this.Invalidate();
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        base.OnPaint(e);
-        if (bestSolution != null)
-        {
-            DrawCitiesAndPath(e.Graphics, bestSolution);
-        }
-    }
-
-    private void DrawCitiesAndPath(Graphics g, Particle solution)
-    {
-        Pen pen = new Pen(Color.Black, 2);
-        Brush cityBrush = new SolidBrush(Color.Red);
-        Font font = new Font("Arial", 10);
-        Brush textBrush = new SolidBrush(Color.Blue);
-
-        // Draw cities as red dots
-        for (int i = 0; i < cities.Count; i++)
-        {
-            City city = cities[i];
-            g.FillEllipse(cityBrush, (float)city.X - 5, (float)city.Y - 5, 10, 10);
-            g.DrawString($"City {i + 1}", font, textBrush, (float)city.X + 10, (float)city.Y);
-        }
-
-        // Draw the optimized path between the cities
-        for (int i = 0; i < solution.Position.Count - 1; i++)
-        {
-            City city1 = cities[solution.Position[i]];
-            City city2 = cities[solution.Position[i + 1]];
-            g.DrawLine(pen, (float)city1.X, (float)city1.Y, (float)city2.X, (float)city2.Y);
-        }
-
-        // Draw the line from the last city back to the first
-        City lastCity = cities[solution.Position.Last()];
-        City firstCity = cities[solution.Position.First()];
-        g.DrawLine(pen, (float)lastCity.X, (float)lastCity.Y, (float)firstCity.X, (float)firstCity.Y);
-
-        // Display iteration count and best distance for debugging purposes
-        g.DrawString($"Iteration: {iterationCount}", font, textBrush, 10, 10);
-        g.DrawString($"Best Distance: {bestDistanceSoFar:F2}", font, textBrush, 10, 30);
-
-        // Display the optimized solution path in text format
-        string pathText = "Optimized Path: " + string.Join(" -> ", solution.Position.Select(i => $"City {i + 1}"));
-        g.DrawString(pathText, font, textBrush, 10, 50);
+        gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1);
+        gaTSP.Run(); // Start the genetic algorithm
     }
 }
