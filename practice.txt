@@ -1,4 +1,36 @@
-// Visualization: Draw the best tour and update labels
+private void DrawArrow(Graphics g, Pen pen, PointF p1, PointF p2)
+{
+    // Draw line
+    g.DrawLine(pen, p1, p2);
+
+    // Calculate the direction vector (dx, dy)
+    float dx = p2.X - p1.X;
+    float dy = p2.Y - p1.Y;
+
+    // Normalize the direction vector
+    float length = (float)Math.Sqrt(dx * dx + dy * dy);
+    dx /= length;
+    dy /= length;
+
+    // Arrowhead size
+    float arrowSize = 10;
+
+    // Points for the arrowhead
+    PointF arrowP1 = new PointF(
+        p2.X - arrowSize * (dx - dy),
+        p2.Y - arrowSize * (dy + dx)
+    );
+
+    PointF arrowP2 = new PointF(
+        p2.X - arrowSize * (dx + dy),
+        p2.Y - arrowSize * (dy - dx)
+    );
+
+    // Draw the arrowhead
+    g.DrawLine(pen, p2, arrowP1);
+    g.DrawLine(pen, p2, arrowP2);
+}
+
 private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
 {
     // Clear the graphics
@@ -17,21 +49,21 @@ private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
         graphics.DrawString($"City {i + 1}", new Font("Arial", 12), Brushes.Black, city.X + 10, city.Y);
     }
 
-    // Draw the path connecting cities, ensuring we return to City 1
+    // Draw the path connecting cities with arrows
     for (int i = 0; i < bestTour.Count - 1; i++)
     {
         City cityA = cities[bestTour[i]];
         City cityB = cities[bestTour[i + 1]];
-        graphics.DrawLine(Pens.Black, cityA.X, cityA.Y, cityB.X, cityB.Y);
+        DrawArrow(graphics, Pens.Black, new PointF(cityA.X, cityA.Y), new PointF(cityB.X, cityB.Y));
     }
 
-    // Connect the last city back to City 1
+    // Connect the last city back to City 1 with an arrow
     City lastCity = cities[bestTour.Last()];
-    City firstCity = cities[bestTour.First()]; // Ensure first city is always City 1
-    graphics.DrawLine(Pens.Black, lastCity.X, lastCity.Y, firstCity.X, firstCity.Y);
+    City firstCity = cities[bestTour.First()];
+    DrawArrow(graphics, Pens.Black, new PointF(lastCity.X, lastCity.Y), new PointF(firstCity.X, firstCity.Y));
 
     // Update the labels for iteration, best distance, and path
-    lblIteration.Text = $"Iteration: {generation}";
+    lblIteration.Text = $"Generation: {generation}";
     lblBestDistance.Text = $"Best Distance: {bestDistance:F2}";
 
     // Build the optimized path string
@@ -41,4 +73,52 @@ private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
 
 
 
+private bool stopRequested = false;
 
+private async void btnStart_Click(object sender, EventArgs e)
+{
+    stopRequested = false; // Reset the flag when the algorithm starts
+    gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1, lblIteration, lblBestDistance, lblOptimizedPath);
+    await gaTSP.RunAsync(); // Start the genetic algorithm asynchronously
+}
+
+private void btnStop_Click(object sender, EventArgs e)
+{
+    stopRequested = true; // Set the flag to stop the algorithm
+}
+
+
+
+public async Task RunAsync()
+{
+    await Task.Run(() =>
+    {
+        for (int gen = 0; gen < generations; gen++)
+        {
+            if (stopRequested)
+            {
+                break; // Stop the loop if stop is requested
+            }
+
+            var newPopulation = new List<List<int>>();
+            for (int i = 0; i < populationSize; i++)
+            {
+                var parent1 = Selection();
+                var parent2 = Selection();
+                var child = Crossover(parent1, parent2);
+                Mutate(child);
+                newPopulation.Add(child);
+            }
+            population = newPopulation;
+
+            var bestTour = population.OrderBy(Fitness).Last();
+            double bestDistance = 1 / Fitness(bestTour);
+
+            // Invoke to update the UI on the main thread
+            pictureBox.Invoke((Action)(() =>
+            {
+                UpdateUI(bestTour, bestDistance, gen);
+            }));
+        }
+    });
+}
