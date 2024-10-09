@@ -1,197 +1,26 @@
-public partial class Form1 : Form
+// Run the GA process
+public void Run()
 {
-    private GeneticAlgorithmTSP gaTSP;
-    private List<City> cities;
-
-    public Form1()
+    for (int gen = 0; gen < generations; gen++)
     {
-        InitializeComponent();
-        InitializeCities();
-    }
-
-    private void InitializeCities()
-    {
-        // Initialize with 6 cities
-        cities = new List<City>
-        {
-            new City(100, 150),
-            new City(200, 300),
-            new City(350, 120),
-            new City(400, 350),
-            new City(500, 200),
-            new City(600, 300)
-        };
-    }
-
-    private void btnStart_Click(object sender, EventArgs e)
-    {
-        gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1, lblIteration, lblBestDistance, lblOptimizedPath);
-        gaTSP.Run(); // Start the genetic algorithm
-    }
-}
-
-
-
-public class GeneticAlgorithmTSP
-{
-    private static Random rand = new Random();
-    private List<City> cities;
-    private List<List<int>> population = new List<List<int>>();
-    private int populationSize = 100;
-    private int generations = 500;
-    private double mutationRate = 0.01;
-
-    private PictureBox pictureBox;
-    private Graphics graphics;
-    private Label lblIteration, lblBestDistance, lblOptimizedPath;
-
-    public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox, Label lblIteration, Label lblBestDistance, Label lblOptimizedPath)
-    {
-        this.cities = cities;
-        this.pictureBox = pictureBox;
-        this.graphics = pictureBox.CreateGraphics();
-        this.lblIteration = lblIteration;
-        this.lblBestDistance = lblBestDistance;
-        this.lblOptimizedPath = lblOptimizedPath;
-
-        InitializePopulation();
-    }
-
-    // Initialize population with random tours
-    private void InitializePopulation()
-    {
+        var newPopulation = new List<List<int>>();
         for (int i = 0; i < populationSize; i++)
         {
-            var tour = Enumerable.Range(0, cities.Count).OrderBy(x => rand.Next()).ToList();
-            population.Add(tour);
+            var parent1 = Selection();
+            var parent2 = Selection();
+            var child = Crossover(parent1, parent2);
+            Mutate(child);
+            newPopulation.Add(child);
         }
-    }
+        population = newPopulation;
 
-    // Fitness function: inverse of the total distance
-    private double Fitness(List<int> tour)
-    {
-        double distance = 0;
-        for (int i = 0; i < tour.Count - 1; i++)
-        {
-            distance += Distance(cities[tour[i]], cities[tour[i + 1]]);
-        }
-        distance += Distance(cities[tour.Last()], cities[tour.First()]); // Return to start
-        return 1 / distance;
-    }
+        var bestTour = population.OrderBy(Fitness).Last();
+        double bestDistance = 1 / Fitness(bestTour);
 
-    private double Distance(City a, City b)
-    {
-        return Math.Sqrt(Math.Pow(b.X - a.X, 2) + Math.Pow(b.Y - a.Y, 2));
-    }
+        // Update the UI with the current best solution
+        UpdateUI(bestTour, bestDistance, gen);
 
-    // Selection: Roulette wheel selection
-    private List<int> Selection()
-    {
-        double totalFitness = population.Sum(Fitness);
-        double randomValue = rand.NextDouble() * totalFitness;
-        double cumulativeFitness = 0;
-        foreach (var individual in population)
-        {
-            cumulativeFitness += Fitness(individual);
-            if (cumulativeFitness >= randomValue)
-                return new List<int>(individual);
-        }
-        return population.Last();
-    }
-
-    // Crossover: Order crossover (OX)
-    private List<int> Crossover(List<int> parent1, List<int> parent2)
-    {
-        int start = rand.Next(cities.Count);
-        int end = rand.Next(start, cities.Count);
-
-        var child = new List<int>(new int[cities.Count]);
-        for (int i = start; i < end; i++)
-        {
-            child[i] = parent1[i];
-        }
-
-        int currentIndex = end;
-        foreach (var city in parent2)
-        {
-            if (!child.Contains(city))
-            {
-                if (currentIndex >= cities.Count)
-                    currentIndex = 0;
-                child[currentIndex++] = city;
-            }
-        }
-        return child;
-    }
-
-    // Mutation: Swap mutation
-    private void Mutate(List<int> individual)
-    {
-        if (rand.NextDouble() < mutationRate)
-        {
-            int index1 = rand.Next(cities.Count);
-            int index2 = rand.Next(cities.Count);
-            int temp = individual[index1];
-            individual[index1] = individual[index2];
-            individual[index2] = temp;
-        }
-    }
-
-    // Run the GA process
-    public void Run()
-    {
-        for (int gen = 0; gen < generations; gen++)
-        {
-            var newPopulation = new List<List<int>>();
-            for (int i = 0; i < populationSize; i++)
-            {
-                var parent1 = Selection();
-                var parent2 = Selection();
-                var child = Crossover(parent1, parent2);
-                Mutate(child);
-                newPopulation.Add(child);
-            }
-            population = newPopulation;
-
-            var bestTour = population.OrderBy(Fitness).Last();
-            double bestDistance = 1 / Fitness(bestTour);
-
-            // Update the UI with the current best solution
-            UpdateUI(bestTour, bestDistance, gen);
-        }
-    }
-
-    // Visualization: Draw the best tour and update labels
-    private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
-    {
-        // Clear the graphics
-        graphics.Clear(Color.White);
-
-        // Draw cities as points
-        foreach (var city in cities)
-        {
-            graphics.FillEllipse(Brushes.Red, city.X - 5, city.Y - 5, 10, 10);
-        }
-
-        // Draw the path connecting cities
-        for (int i = 0; i < bestTour.Count - 1; i++)
-        {
-            City cityA = cities[bestTour[i]];
-            City cityB = cities[bestTour[i + 1]];
-            graphics.DrawLine(Pens.Black, cityA.X, cityA.Y, cityB.X, cityB.Y);
-        }
-
-        // Connect the last city to the first city to complete the cycle
-        City lastCity = cities[bestTour.Last()];
-        City firstCity = cities[bestTour.First()];
-        graphics.DrawLine(Pens.Black, lastCity.X, lastCity.Y, firstCity.X, firstCity.Y);
-
-        // Update the labels
-        lblIteration.Text = $"Iteration: {generation}";
-        lblBestDistance.Text = $"Best Distance: {bestDistance:F2}";
-
-        // Build the optimized path string
-        var optimizedPath = string.Join(" -> ", bestTour.Select(index => $"City {index + 1}"));
-        lblOptimizedPath.Text = $"Optimized Path: {optimizedPath}";
+        // Allow the UI to refresh
+        Application.DoEvents();
     }
 }
