@@ -1,26 +1,44 @@
-// Run the GA process
-public void Run()
+// Visualization: Draw the best tour and update labels
+private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
 {
-    for (int gen = 0; gen < generations; gen++)
+    // Clear the graphics
+    graphics.Clear(Color.White);
+
+    // Draw cities as larger dots and label them
+    for (int i = 0; i < cities.Count; i++)
     {
-        var newPopulation = new List<List<int>>();
-        for (int i = 0; i < populationSize; i++)
-        {
-            var parent1 = Selection();
-            var parent2 = Selection();
-            var child = Crossover(parent1, parent2);
-            Mutate(child);
-            newPopulation.Add(child);
-        }
-        population = newPopulation;
+        var city = cities[i];
+        int dotSize = 15; // Increase dot size
 
-        var bestTour = population.OrderBy(Fitness).Last();
-        double bestDistance = 1 / Fitness(bestTour);
+        // Draw the city as a large dot
+        graphics.FillEllipse(Brushes.Red, city.X - dotSize / 2, city.Y - dotSize / 2, dotSize, dotSize);
 
-        // Update the UI with the current best solution
-        UpdateUI(bestTour, bestDistance, gen);
-
-        // Allow the UI to refresh
-        Application.DoEvents();
+        // Draw the city number next to the dot
+        graphics.DrawString($"City {i + 1}", new Font("Arial", 12), Brushes.Black, city.X + 10, city.Y);
     }
+
+    // Draw the path connecting cities, ensuring we return to City 1
+    for (int i = 0; i < bestTour.Count - 1; i++)
+    {
+        City cityA = cities[bestTour[i]];
+        City cityB = cities[bestTour[i + 1]];
+        graphics.DrawLine(Pens.Black, cityA.X, cityA.Y, cityB.X, cityB.Y);
+    }
+
+    // Connect the last city back to City 1
+    City lastCity = cities[bestTour.Last()];
+    City firstCity = cities[bestTour.First()]; // Ensure first city is always City 1
+    graphics.DrawLine(Pens.Black, lastCity.X, lastCity.Y, firstCity.X, firstCity.Y);
+
+    // Update the labels for iteration, best distance, and path
+    lblIteration.Text = $"Iteration: {generation}";
+    lblBestDistance.Text = $"Best Distance: {bestDistance:F2}";
+
+    // Build the optimized path string
+    var optimizedPath = string.Join(" -> ", bestTour.Select(index => $"City {index + 1}"));
+    lblOptimizedPath.Text = $"Optimized Path: {optimizedPath}";
 }
+
+
+
+
