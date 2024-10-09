@@ -1,14 +1,36 @@
-public class City
+public partial class Form1 : Form
 {
-    public int X { get; }
-    public int Y { get; }
-    
-    public City(int x, int y)
+    private GeneticAlgorithmTSP gaTSP;
+    private List<City> cities;
+
+    public Form1()
     {
-        X = x;
-        Y = y;
+        InitializeComponent();
+        InitializeCities();
+    }
+
+    private void InitializeCities()
+    {
+        // Initialize with 6 cities
+        cities = new List<City>
+        {
+            new City(100, 150),
+            new City(200, 300),
+            new City(350, 120),
+            new City(400, 350),
+            new City(500, 200),
+            new City(600, 300)
+        };
+    }
+
+    private void btnStart_Click(object sender, EventArgs e)
+    {
+        gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1, lblIteration, lblBestDistance, lblOptimizedPath);
+        gaTSP.Run(); // Start the genetic algorithm
     }
 }
+
+
 
 public class GeneticAlgorithmTSP
 {
@@ -18,14 +40,20 @@ public class GeneticAlgorithmTSP
     private int populationSize = 100;
     private int generations = 500;
     private double mutationRate = 0.01;
+
     private PictureBox pictureBox;
     private Graphics graphics;
-    
-    public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox)
+    private Label lblIteration, lblBestDistance, lblOptimizedPath;
+
+    public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox, Label lblIteration, Label lblBestDistance, Label lblOptimizedPath)
     {
         this.cities = cities;
         this.pictureBox = pictureBox;
         this.graphics = pictureBox.CreateGraphics();
+        this.lblIteration = lblIteration;
+        this.lblBestDistance = lblBestDistance;
+        this.lblOptimizedPath = lblOptimizedPath;
+
         InitializePopulation();
     }
 
@@ -133,18 +161,19 @@ public class GeneticAlgorithmTSP
         }
     }
 
-    // Visualization: Draw the best tour
+    // Visualization: Draw the best tour and update labels
     private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
     {
-        graphics.Clear(Color.White); // Clear previous drawing
-        
+        // Clear the graphics
+        graphics.Clear(Color.White);
+
         // Draw cities as points
         foreach (var city in cities)
         {
             graphics.FillEllipse(Brushes.Red, city.X - 5, city.Y - 5, 10, 10);
         }
 
-        // Draw path connecting cities
+        // Draw the path connecting cities
         for (int i = 0; i < bestTour.Count - 1; i++)
         {
             City cityA = cities[bestTour[i]];
@@ -152,46 +181,17 @@ public class GeneticAlgorithmTSP
             graphics.DrawLine(Pens.Black, cityA.X, cityA.Y, cityB.X, cityB.Y);
         }
 
-        // Connect last city to the first to complete the cycle
+        // Connect the last city to the first city to complete the cycle
         City lastCity = cities[bestTour.Last()];
         City firstCity = cities[bestTour.First()];
         graphics.DrawLine(Pens.Black, lastCity.X, lastCity.Y, firstCity.X, firstCity.Y);
 
-        // Update form title with current generation and best distance
-        pictureBox.Parent.Text = $"Generation: {generation}, Best Distance: {bestDistance:F2}";
-    }
-}
+        // Update the labels
+        lblIteration.Text = $"Iteration: {generation}";
+        lblBestDistance.Text = $"Best Distance: {bestDistance:F2}";
 
-
-
-
-public partial class Form1 : Form
-{
-    private GeneticAlgorithmTSP gaTSP;
-    private List<City> cities;
-    
-    public Form1()
-    {
-        InitializeComponent();
-        InitializeCities();
-    }
-
-    private void InitializeCities()
-    {
-        // Example cities (can be dynamic)
-        cities = new List<City>
-        {
-            new City(100, 200),
-            new City(300, 400),
-            new City(500, 100),
-            new City(600, 300),
-            new City(200, 500)
-        };
-    }
-
-    private void btnStart_Click(object sender, EventArgs e)
-    {
-        gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1);
-        gaTSP.Run(); // Start the genetic algorithm
+        // Build the optimized path string
+        var optimizedPath = string.Join(" -> ", bestTour.Select(index => $"City {index + 1}"));
+        lblOptimizedPath.Text = $"Optimized Path: {optimizedPath}";
     }
 }
