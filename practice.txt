@@ -1,6 +1,13 @@
- // Check and remove any quotation marks from coordinates
-                coordinates[0] = coordinates[0].Replace("\"", "");
-                coordinates[1] = coordinates[1].Replace("\"", "");
+private void InitializeDataGridView()
+{
+    // Clear existing columns if any
+    dataGridView1.Columns.Clear();
 
-                // Debug: Output the cleaned coordinate string being parsed
-                Console.WriteLine($"Parsing city coordinates: '{coordinates[0]}, {coordinates[1]}'");
+    // Define columns
+    dataGridView1.Columns.Add("DatasetSize", "Dataset Size");
+    dataGridView1.Columns.Add("BestDistance", "Best Distance");
+}
+
+
+
+    InitializeDataGridView(); 
