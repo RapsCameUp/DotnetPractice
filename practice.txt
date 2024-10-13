@@ -1,348 +1,122 @@
+private void btnLoadDataset_Click(object sender, EventArgs e)
+{
+    OpenFileDialog openFileDialog = new OpenFileDialog
+    {
+        Filter = "CSV files (*.csv)|*.csv",
+        Title = "Select a dataset file"
+    };
+
+    if (openFileDialog.ShowDialog() == DialogResult.OK)
+    {
+        string filePath = openFileDialog.FileName;
+        LoadCitiesFromDataset(filePath);
+    }
+}
+
+private void LoadCitiesFromDataset(string filePath)
+{
+    cities = new List<City>();
+
+    var lines = System.IO.File.ReadAllLines(filePath);
+    foreach (var line in lines.Skip(1)) // Skip header
+    {
+        var data = line.Split(',');
+        int x = int.Parse(data[1]);
+        int y = int.Parse(data[2]);
+        cities.Add(new City(x, y));
+    }
+    
+    // Optionally, refresh the display after loading new cities
+    pictureBox1.Refresh();
+}
+
+
+
+
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
 
-namespace TSP_GA
+public class ResultForm : Form
 {
-    public class GeneticAlgorithmTSP
+    private DataGridView dataGridView;
+    private Chart chart;
+
+    public ResultForm()
     {
-        private static Random rand = new Random();
-        private List<City> cities;
-        private List<List<int>> population = new List<List<int>>();
-        private int populationSize = 100;
-        private int generations = 500;
-        private double mutationRate = 0.01;
-
-        private PictureBox pictureBox;
-        private Graphics graphics;
-        private Label lblIteration, lblBestDistance, lblOptimizedPath;
-        private Func<bool> stopRequested;
-
-        public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox, Label lblIteration, Label lblBestDistance, Label lblOptimizedPath, Func<bool> stopRequested)
-        {
-            this.cities = cities;
-            this.pictureBox = pictureBox;
-            this.graphics = pictureBox.CreateGraphics();
-            this.lblIteration = lblIteration;
-            this.lblBestDistance = lblBestDistance;
-            this.lblOptimizedPath = lblOptimizedPath;
-            this.stopRequested = stopRequested;
-
-            InitializePopulation();
-        }
-
-        // Initialize population with random tours
-        private void InitializePopulation()
-        {
-            for (int i = 0; i < populationSize; i++)
-            {
-                var tour = Enumerable.Range(0, cities.Count).OrderBy(x => rand.Next()).ToList();
-                population.Add(tour);
-            }
-        }
-
-        // Fitness function: inverse of the total distance
-        private double Fitness(List<int> tour)
-        {
-            double distance = 0;
-            for (int i = 0; i < tour.Count - 1; i++)
-            {
-                distance += Distance(cities[tour[i]], cities[tour[i + 1]]);
-            }
-            distance += Distance(cities[tour.Last()], cities[tour.First()]); // Return to start
-            return 1 / distance;
-        }
-
-        private double Distance(City a, City b)
-        {
-            return Math.Sqrt(Math.Pow(b.X - a.X, 2) + Math.Pow(b.Y - a.Y, 2));
-        }
-
-        // Selection: Roulette wheel selection
-        private List<int> Selection()
-        {
-            double totalFitness = population.Sum(Fitness);
-            double randomValue = rand.NextDouble() * totalFitness;
-            double cumulativeFitness = 0;
-            foreach (var individual in population)
-            {
-                cumulativeFitness += Fitness(individual);
-                if (cumulativeFitness >= randomValue)
-                    return new List<int>(individual);
-            }
-            return population.Last();
-        }
-
-        // Crossover: Order crossover (OX)
-        private List<int> Crossover(List<int> parent1, List<int> parent2)
-        {
-            int start = rand.Next(cities.Count);
-            int end = rand.Next(start, cities.Count);
-
-            var child = new List<int>(new int[cities.Count]);
-            for (int i = start; i < end; i++)
-            {
-                child[i] = parent1[i];
-            }
-
-            int currentIndex = end;
-            foreach (var city in parent2)
-            {
-                if (!child.Contains(city))
-                {
-                    if (currentIndex >= cities.Count)
-                        currentIndex = 0;
-                    child[currentIndex++] = city;
-                }
-            }
-            return child;
-        }
-
-        // Mutation: Swap mutation
-        private void Mutate(List<int> individual)
-        {
-            if (rand.NextDouble() < mutationRate)
-            {
-                int index1 = rand.Next(cities.Count);
-                int index2 = rand.Next(cities.Count);
-                int temp = individual[index1];
-                individual[index1] = individual[index2];
-                individual[index2] = temp;
-            }
-        }
-
-        // Run the GA process asynchronously
-        public async Task RunAsync()
-        {
-            await Task.Run(() =>
-            {
-                for (int gen = 0; gen < generations; gen++)
-                {
-                    if (stopRequested()) return; // Stop if requested
-
-                    var newPopulation = new List<List<int>>();
-                    for (int i = 0; i < populationSize; i++)
-                    {
-                        var parent1 = Selection();
-                        var parent2 = Selection();
-                        var child = Crossover(parent1, parent2);
-                        Mutate(child);
-                        newPopulation.Add(child);
-                    }
-                    population = newPopulation;
-
-                    var bestTour = population.OrderBy(Fitness).Last();
-                    double bestDistance = 1 / Fitness(bestTour);
-
-                    // Invoke UI updates on the main thread
-                    pictureBox.Invoke((Action)(() =>
-                    {
-                        UpdateUI(bestTour, bestDistance, gen);
-                    }));
-                }
-            });
-        }
-
-        // Visualization: Draw the best tour with arrows and update labels
-        private void UpdateUI(List<int> bestTour, double bestDistance, int generation)
-        {
-            // Clear the graphics
-            graphics.Clear(Color.White);
-
-            // Draw cities as larger dots and label them
-            for (int i = 0; i < cities.Count; i++)
-            {
-                var city = cities[i];
-                int dotSize = 15; // Increase dot size
-
-                // Draw the city as a large dot
-                graphics.FillEllipse(Brushes.Red, city.X - dotSize / 2, city.Y - dotSize / 2, dotSize, dotSize);
-
-                // Draw the city number next to the dot
-                graphics.DrawString($"City {i + 1}", new Font("Arial", 12), Brushes.Black, city.X + 10, city.Y);
-            }
-
-            // Draw the path connecting cities with arrows
-            for (int i = 0; i < bestTour.Count - 1; i++)
-            {
-                City cityA = cities[bestTour[i]];
-                City cityB = cities[bestTour[i + 1]];
-                DrawArrow(graphics, Pens.Black, new PointF(cityA.X, cityA.Y), new PointF(cityB.X, cityB.Y));
-            }
-
-            // Connect the last city back to City 1 with an arrow
-            City lastCity = cities[bestTour.Last()];
-            City firstCity = cities[bestTour.First()]; // Ensure first city is always City 1
-            DrawArrow(graphics, Pens.Black, new PointF(lastCity.X, lastCity.Y), new PointF(firstCity.X, firstCity.Y));
-
-            // Update the labels for iteration, best distance, and path
-            lblIteration.Text = $"Generation: {generation}";
-            lblBestDistance.Text = $"Best Distance: {bestDistance:F2}";
-
-            // Build the optimized path string
-            var optimizedPath = string.Join(" -> ", bestTour.Select(index => $"City {index + 1}"));
-            lblOptimizedPath.Text = $"Optimized Path: {optimizedPath}";
-        }
-
-        // Draw an arrow between two points
-        private void DrawArrow(Graphics g, Pen pen, PointF p1, PointF p2)
-        {
-            // Draw line
-            g.DrawLine(pen, p1, p2);
-
-            // Arrowhead size
-            const float arrowSize = 10f;
-            const float angle = 30f;
-
-            // Calculate direction vector (dx, dy)
-            float dx = p2.X - p1.X;
-            float dy = p2.Y - p1.Y;
-
-            // Normalize the direction vector
-            float length = (float)Math.Sqrt(dx * dx + dy * dy);
-            dx /= length;
-            dy /= length;
-
-            // Calculate arrowhead points
-            PointF arrowP1 = new PointF(
-                p2.X - arrowSize * (float)Math.Cos(Math.PI / 180 * angle) * dx + arrowSize * (float)Math.Sin(Math.PI / 180 * angle) * dy,
-                p2.Y - arrowSize * (float)Math.Cos(Math.PI / 180 * angle) * dy - arrowSize * (float)Math.Sin(Math.PI / 180 * angle) * dx
-            );
-
-            PointF arrowP2 = new PointF(
-                p2.X - arrowSize * (float)Math.Cos(Math.PI / 180 * angle) * dx - arrowSize * (float)Math.Sin(Math.PI / 180 * angle) * dy,
-                p2.Y - arrowSize * (float)Math.Cos(Math.PI / 180 * angle) * dy + arrowSize * (float)Math.Sin(Math.PI / 180 * angle) * dx
-            );
-
-            // Draw arrowhead
-            g.DrawLine(pen, p2, arrowP1);
-            g.DrawLine(pen, p2, arrowP2);
-        }
+        InitializeComponents();
     }
 
-    public class City
+    private void InitializeComponents()
     {
-        public int X { get; }
-        public int Y { get; }
+        this.Text = "Results";
+        this.Size = new System.Drawing.Size(600, 400);
 
-        public City(int x, int y)
+        // DataGridView
+        dataGridView = new DataGridView
         {
-            X = x;
-            Y = y;
-        }
+            Dock = DockStyle.Top,
+            Height = 200
+        };
+        dataGridView.Columns.Add("Generation", "Generation");
+        dataGridView.Columns.Add("BestDistance", "Best Distance");
+
+        // Chart
+        chart = new Chart { Dock = DockStyle.Bottom, Height = 200 };
+        ChartArea chartArea = new ChartArea();
+        chart.ChartAreas.Add(chartArea);
+        Series series = new Series
+        {
+            ChartType = SeriesChartType.Line,
+            XValueType = ChartValueType.Int32
+        };
+        chart.Series.Add(series);
+
+        // Add components to form
+        this.Controls.Add(dataGridView);
+        this.Controls.Add(chart);
+    }
+
+    public void UpdateResults(int generation, double bestDistance)
+    {
+        // Update the DataGridView
+        dataGridView.Rows.Add(generation, bestDistance);
+
+        // Update the Chart
+        chart.Series[0].Points.AddXY(generation, bestDistance);
     }
 }
 
 
-
-
-namespace TSP_GA
+private async void btnStart_Click(object sender, EventArgs e)
 {
-    partial class Form1
-    {
-        private System.ComponentModel.IContainer components = null;
-        private System.Windows.Forms.PictureBox pictureBox1;
-        private System.Windows.Forms.Button btnStart;
-        private System.Windows.Forms.Button btnStop;
-        private System.Windows.Forms.Label lblIteration;
-        private System.Windows.Forms.Label lblBestDistance;
-        private System.Windows.Forms.Label lblOptimizedPath;
+    stopRequested = false;
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
-            {
-                components.Dispose();
-            }
-            base.Dispose(disposing);
-        }
+    // Show the result form
+    var resultForm = new ResultForm();
+    resultForm.Show();
 
-        private void InitializeComponent()
-        {
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.btnStart = new System.Windows.Forms.Button();
-            this.btnStop = new System.Windows.Forms.Button();
-            this.lblIteration = new System.Windows.Forms.Label();
-            this.lblBestDistance = new System.Windows.Forms.Label();
-            this.lblOptimizedPath = new System.Windows.Forms.Label();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
-            this.SuspendLayout();
-            // 
-            // pictureBox1
-            // 
-            this.pictureBox1.BackColor = System.Drawing.Color.White;
-            this.pictureBox1.Location = new System.Drawing.Point(12, 12);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(760, 400);
-            this.pictureBox1.TabIndex = 0;
-            this.pictureBox1.TabStop = false;
-            // 
-            // btnStart
-            // 
-            this.btnStart.Location = new System.Drawing.Point(12, 420);
-            this.btnStart.Name = "btnStart";
-            this.btnStart.Size = new System.Drawing.Size(75, 23);
-            this.btnStart.TabIndex = 1;
-            this.btnStart.Text = "Start";
-            this.btnStart.UseVisualStyleBackColor = true;
-            this.btnStart.Click += new System.EventHandler(this.btnStart_Click);
-            // 
-            // btnStop
-            // 
-            this.btnStop.Location = new System.Drawing.Point(100, 420);
-            this.btnStop.Name = "btnStop";
-            this.btnStop.Size = new System.Drawing.Size(75, 23);
-            this.btnStop.TabIndex = 2;
-            this.btnStop.Text = "Stop";
-            this.btnStop.UseVisualStyleBackColor = true;
-            this.btnStop.Click += new System.EventHandler(this.btnStop_Click);
-            // 
-            // lblIteration
-            // 
-            this.lblIteration.AutoSize = true;
-            this.lblIteration.Location = new System.Drawing.Point(200, 420);
-            this.lblIteration.Name = "lblIteration";
-            this.lblIteration.Size = new System.Drawing.Size(54, 15);
-            this.lblIteration.TabIndex = 3;
-            this.lblIteration.Text = "Iteration: ";
-            // 
-            // lblBestDistance
-            // 
-            this.lblBestDistance.AutoSize = true;
-            this.lblBestDistance.Location = new System.Drawing.Point(300, 420);
-            this.lblBestDistance.Name = "lblBestDistance";
-            this.lblBestDistance.Size = new System.Drawing.Size(84, 15);
-            this.lblBestDistance.TabIndex = 4;
-            this.lblBestDistance.Text = "Best Distance: ";
-            // 
-            // lblOptimizedPath
-            // 
-            this.lblOptimizedPath.AutoSize = true;
-            this.lblOptimizedPath.Location = new System.Drawing.Point(420, 420);
-            this.lblOptimizedPath.Name = "lblOptimizedPath";
-            this.lblOptimizedPath.Size = new System.Drawing.Size(91, 15);
-            this.lblOptimizedPath.TabIndex = 5;
-            this.lblOptimizedPath.Text = "Optimized Path: ";
-            // 
-            // Form1
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(784, 461);
-            this.Controls.Add(this.lblOptimizedPath);
-            this.Controls.Add(this.lblBestDistance);
-            this.Controls.Add(this.lblIteration);
-            this.Controls.Add(this.btnStop);
-            this.Controls.Add(this.btnStart);
-            this.Controls.Add(this.pictureBox1);
-            this.Name = "Form1";
-            this.Text = "Traveling Salesperson Problem - Genetic Algorithm";
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
-            this.ResumeLayout(false);
-            this.PerformLayout();
-        }
-    }
+    gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1, lblIteration, lblBestDistance, lblOptimizedPath, resultForm.UpdateResults, () => stopRequested);
+    await gaTSP.RunAsync();
 }
+
+
+private Action<int, double> updateResultsCallback;
+
+public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox, Label lblIteration, Label lblBestDistance, Label lblOptimizedPath, Action<int, double> updateResultsCallback, Func<bool> stopRequested)
+{
+    this.cities = cities;
+    this.pictureBox = pictureBox;
+    this.graphics = pictureBox.CreateGraphics();
+    this.lblIteration = lblIteration;
+    this.lblBestDistance = lblBestDistance;
+    this.lblOptimizedPath = lblOptimizedPath;
+    this.updateResultsCallback = updateResultsCallback;
+    this.stopRequested = stopRequested;
+
+    InitializePopulation();
+}
+
+
+// After updating the best tour
+updateResultsCallback(generation, bestDistance);
