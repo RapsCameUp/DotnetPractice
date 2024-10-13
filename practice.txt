@@ -1,7 +1,40 @@
-100,200;150,250;300,400
-200,300;350,400;400,500;100,100;500,200;300,300;600,400;200,150;250,350;100,200
-50,50;300,400;600,700;800,900;150,200;100,150;50,100;90,90;80,80;70,70;60,60
-100,150;200,200;300,300;400,400;500,500;600,600;700,700;800,800;900,900
-120,180;130,250;220,290;310,360;480,490;590,580;690,680;790,790;890,890;990,990
-150,100;200,150;300,200;400,250;500,300;600,350;700,400;800,450;900,500;1000,550
-50,80;120,150;190,220;300,350;400,400;500,500;600,600;700,700;800,800;900,900
+private List<City> ParseDataset(string datasetLine)
+{
+    // Split the line by semicolon to get individual city data
+    var cityData = datasetLine.Split(';');
+
+    // Initialize a list to store the parsed cities
+    var cities = new List<City>();
+
+    foreach (var city in cityData)
+    {
+        // Split each city data by comma and trim any whitespace
+        var coordinates = city.Split(',').Select(c => c.Trim()).ToArray();
+
+        // Ensure we have exactly 2 coordinates for X and Y
+        if (coordinates.Length == 2)
+        {
+            try
+            {
+                // Parse the coordinates and create a new City object
+                int x = int.Parse(coordinates[0]);
+                int y = int.Parse(coordinates[1]);
+                cities.Add(new City(x, y));
+            }
+            catch (FormatException ex)
+            {
+                MessageBox.Show($"Error parsing city coordinates: {city}. Please ensure the format is correct.", "Parsing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred while parsing: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        else
+        {
+            MessageBox.Show($"Invalid city data format: {city}. Each city must be in the format 'x,y'.", "Format Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    return cities;
+}
