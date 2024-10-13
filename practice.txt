@@ -1,122 +1,122 @@
-private void btnLoadDataset_Click(object sender, EventArgs e)
-{
-    OpenFileDialog openFileDialog = new OpenFileDialog
-    {
-        Filter = "CSV files (*.csv)|*.csv",
-        Title = "Select a dataset file"
-    };
+ // Run through each dataset and display the performance
+        private async void RunDatasets()
+        {
+            foreach (var dataset in datasets)
+            {
+                cities = ParseDataset(dataset); // Parse dataset into cities
+                stopRequested = false;
+                gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1, lblIteration, lblBestDistance, lblOptimizedPath, () => stopRequested);
+                double bestDistance = await gaTSP.RunAsync(); // Run the genetic algorithm and get best distance
+                
+                performanceData.Add(new PerformanceData
+                {
+                    DatasetSize = cities.Count,
+                    BestDistance = bestDistance
+                });
+            }
 
-    if (openFileDialog.ShowDialog() == DialogResult.OK)
+            // After processing all datasets, show the result form
+            ShowResultForm();
+        }
+
+        // Parse dataset line into a list of cities
+        private List<City> ParseDataset(string dataset)
+        {
+            var cityData = dataset.Split(';').Select(s => s.Split(',')).ToList();
+            return cityData.Select(c => new City(int.Parse(c[0]), int.Parse(c[1]))).ToList();
+        }
+
+        // Show result form to display the performance table and graph
+        private void ShowResultForm()
+        {
+            ResultForm resultForm = new ResultForm(performanceData);
+            resultForm.Show();
+        }
+
+
+
+
+
+ public class PerformanceData
     {
-        string filePath = openFileDialog.FileName;
-        LoadCitiesFromDataset(filePath);
+        public int DatasetSize { get; set; }
+        public double BestDistance { get; set; }
     }
-}
 
-private void LoadCitiesFromDataset(string filePath)
+
+public async Task<double> RunAsync()
 {
-    cities = new List<City>();
-
-    var lines = System.IO.File.ReadAllLines(filePath);
-    foreach (var line in lines.Skip(1)) // Skip header
-    {
-        var data = line.Split(',');
-        int x = int.Parse(data[1]);
-        int y = int.Parse(data[2]);
-        cities.Add(new City(x, y));
-    }
+    double bestDistance = 0;
     
-    // Optionally, refresh the display after loading new cities
-    pictureBox1.Refresh();
-}
+    await Task.Run(() =>
+    {
+        for (int gen = 0; gen < generations; gen++)
+        {
+            if (stopRequested()) return;
+            
+            var newPopulation = new List<List<int>>();
+            for (int i = 0; i < populationSize; i++)
+            {
+                var parent1 = Selection();
+                var parent2 = Selection();
+                var child = Crossover(parent1, parent2);
+                Mutate(child);
+                newPopulation.Add(child);
+            }
+            population = newPopulation;
 
+            var bestTour = population.OrderBy(Fitness).Last();
+            bestDistance = 1 / Fitness(bestTour);
+
+            pictureBox.Invoke((Action)(() =>
+            {
+                UpdateUI(bestTour, bestDistance, gen);
+            }));
+        }
+    });
+
+    return bestDistance; // Return the best distance after the run
+}
 
 
 
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 
-public class ResultForm : Form
+namespace TSP_GA
 {
-    private DataGridView dataGridView;
-    private Chart chart;
-
-    public ResultForm()
+    public partial class ResultForm : Form
     {
-        InitializeComponents();
-    }
-
-    private void InitializeComponents()
-    {
-        this.Text = "Results";
-        this.Size = new System.Drawing.Size(600, 400);
-
-        // DataGridView
-        dataGridView = new DataGridView
+        public ResultForm(List<PerformanceData> performanceData)
         {
-            Dock = DockStyle.Top,
-            Height = 200
-        };
-        dataGridView.Columns.Add("Generation", "Generation");
-        dataGridView.Columns.Add("BestDistance", "Best Distance");
+            InitializeComponent();
+            PopulateTable(performanceData);
+            PlotGraph(performanceData);
+        }
 
-        // Chart
-        chart = new Chart { Dock = DockStyle.Bottom, Height = 200 };
-        ChartArea chartArea = new ChartArea();
-        chart.ChartAreas.Add(chartArea);
-        Series series = new Series
+        // Populate table with dataset size and best distance
+        private void PopulateTable(List<PerformanceData> performanceData)
         {
-            ChartType = SeriesChartType.Line,
-            XValueType = ChartValueType.Int32
-        };
-        chart.Series.Add(series);
+            dataGridView1.Rows.Clear();
+            foreach (var data in performanceData)
+            {
+                dataGridView1.Rows.Add(data.DatasetSize, data.BestDistance);
+            }
+        }
 
-        // Add components to form
-        this.Controls.Add(dataGridView);
-        this.Controls.Add(chart);
+        // Plot graph to show performance
+        private void PlotGraph(List<PerformanceData> performanceData)
+        {
+            chart1.Series.Clear();
+            Series series = new Series("Best Distance");
+            chart1.Series.Add(series);
+
+            foreach (var data in performanceData)
+            {
+                series.Points.AddXY(data.DatasetSize, data.BestDistance);
+            }
+        }
     }
-
-    public void UpdateResults(int generation, double bestDistance)
-    {
-        // Update the DataGridView
-        dataGridView.Rows.Add(generation, bestDistance);
-
-        // Update the Chart
-        chart.Series[0].Points.AddXY(generation, bestDistance);
-    }
 }
-
-
-private async void btnStart_Click(object sender, EventArgs e)
-{
-    stopRequested = false;
-
-    // Show the result form
-    var resultForm = new ResultForm();
-    resultForm.Show();
-
-    gaTSP = new GeneticAlgorithmTSP(cities, pictureBox1, lblIteration, lblBestDistance, lblOptimizedPath, resultForm.UpdateResults, () => stopRequested);
-    await gaTSP.RunAsync();
-}
-
-
-private Action<int, double> updateResultsCallback;
-
-public GeneticAlgorithmTSP(List<City> cities, PictureBox pictureBox, Label lblIteration, Label lblBestDistance, Label lblOptimizedPath, Action<int, double> updateResultsCallback, Func<bool> stopRequested)
-{
-    this.cities = cities;
-    this.pictureBox = pictureBox;
-    this.graphics = pictureBox.CreateGraphics();
-    this.lblIteration = lblIteration;
-    this.lblBestDistance = lblBestDistance;
-    this.lblOptimizedPath = lblOptimizedPath;
-    this.updateResultsCallback = updateResultsCallback;
-    this.stopRequested = stopRequested;
-
-    InitializePopulation();
-}
-
-
-// After updating the best tour
-updateResultsCallback(generation, bestDistance);
