@@ -82,3 +82,8 @@ Key Points:
 Explore real-time implementation of liveness checks with camera feeds.
 Combine additional biometric factors, such as gait analysis, for more robust identification.
 Further optimize deep learning models for faster inference in low-resource environments.
+
+
+https://drive.google.com/file/d/1ZmQ1BUyTx6dzacGRDEoLtuw4nzPfyewq/view?usp=drive_link
+
+pip install fastapi uvicorn numpy tensorflow scikit-learn pillow
