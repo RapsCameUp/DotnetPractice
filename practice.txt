@@ -1,7 +1,4 @@
-https://meet.google.com/jgv-wytw-jpi?hs=224
-
-
-Roulette Wheel Selection:Slide 2: Introduction
+Slide 2: Introduction
 Key Points:
 The rise of digital technology has exposed vulnerabilities in traditional authentication methods like passwords and biometrics.
 There’s a need for advanced, secure solutions to protect sensitive data.
@@ -85,20 +82,3 @@ Key Points:
 Explore real-time implementation of liveness checks with camera feeds.
 Combine additional biometric factors, such as gait analysis, for more robust identification.
 Further optimize deep learning models for faster inference in low-resource environments.
-The method used here is called roulette wheel selection, also known as fitness-proportionate selection.
-The probability of selecting an individual is proportional to its fitness score. Individuals with higher fitness values (shorter paths) are more likely to be selected.
-A random value is generated in the range [0, total fitness], and individuals are selected based on where the random value falls within the cumulative fitness of the population.
-Example: If the total fitness of all individuals is 10, and one individual has a fitness of 3, it has a 30% chance of being selected.
-
-
-Detailed Explanation:
-Purpose: The fitness function is used to evaluate how good a path (tour) is. A smaller distance means a better solution.
-How it works:
-The tour is a list of city indices that represents the order in which cities are visited.
-The distance is calculated by summing the distances between each consecutive pair of cities in the tour.
-Additionally, the algorithm adds the distance from the last city back to the first, since the TSP requires a round trip.
-The fitness value is calculated as the inverse of the total distance. Since the goal is to minimize distance, shorter distances result in higher fitness values. In other words, paths with shorter distances have higher fitness, making them more likely to be selected for reproduction.
-
-
-A random number is generated, and if it is less than the mutation rate (which is typically small, e.g., 1% or 0.01), the mutation occurs.
-Mutation Action: Mutation here is performed by randomly swapping two cities in the tour (path). This changes the order of the cities visited, thus creating a new possible solution.
