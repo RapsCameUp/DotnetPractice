@@ -1,7 +1,90 @@
 https://meet.google.com/jgv-wytw-jpi?hs=224
 
 
-Roulette Wheel Selection:
+Roulette Wheel Selection:Slide 2: Introduction
+Key Points:
+The rise of digital technology has exposed vulnerabilities in traditional authentication methods like passwords and biometrics.
+There’s a need for advanced, secure solutions to protect sensitive data.
+The project proposes using full body re-identification combined with liveness checks to enhance security.
+Slide 3: Problem Statement
+Key Points:
+Traditional authentication methods (passwords, PINs, fingerprints) are increasingly vulnerable to phishing, brute force attacks, and leaks.
+Biometric methods like fingerprints and facial recognition face spoofing and irreversible compromise risks.
+Challenge: How do we develop a more secure, harder-to-spoof authentication mechanism?
+Slide 4: Proposed Solution
+Title: Full Body Re-identification with Liveness Check
+Key Points:
+Full body re-identification leverages physical attributes for authentication.
+Liveness checks ensure the person is physically present and not a photo/video.
+This combination offers enhanced security, reducing the vulnerabilities of traditional biometrics and passwords.
+Slide 5: Architecture
+Title: System Architecture Overview
+Diagram: Include a flowchart diagram showing the following steps:
+Image Input (Full body image captured)
+Feature Extraction (HOG features, or Deep Learning features with TensorFlow in comparison)
+Liveness Detection (Checks for live person, not a static image)
+Re-identification (Matching the extracted features with the database)
+Decision (Access Granted/Denied)
+Slide 6: Dataset
+Title: Dataset – Market-1501
+Key Points:
+Market-1501: A standard dataset for person re-identification, containing over 32,000 images of 1,501 identities.
+Images captured from multiple angles and locations.
+Training set: Bounding box images used for feature extraction and model training.
+Validation set used to evaluate the model performance.
+Slide 7: Data Processing
+Title: Data Processing Pipeline
+Key Points:
+Image Preprocessing: Resizing images, converting to grayscale.
+Feature Extraction:
+Without deep learning: HOG features extracted using classical computer vision techniques.
+With deep learning: Using TensorFlow’s MobileNetV2 for comparison.
+Labels: Labels extracted from image filenames to associate with specific identities.
+Saving Features: Storing features and labels as .npy files for easy access.
+Slide 8: Metrics
+Title: Performance Metrics
+Key Points:
+Accuracy: Correct identification rate from the dataset.
+Validation Accuracy: Accuracy measured on unseen validation data.
+Precision, Recall, F1 Score: To evaluate model performance.
+Confusion Matrix: Visualize true positives, false positives, false negatives, etc.
+Slide 9: Model Comparison (with and without TensorFlow)
+Title: Model Comparison: Traditional vs Deep Learning Approach
+Key Points:
+Traditional (HOG + SVM):
+Uses classical computer vision techniques.
+Less computationally expensive.
+Performs well on smaller datasets but limited in scale.
+Deep Learning (MobileNetV2 with TensorFlow):
+Extracts more detailed, complex features.
+Performs better on large datasets like Market-1501.
+More robust to variations in lighting, angle, etc.
+Results:
+TensorFlow achieves higher accuracy, but HOG + SVM offers simpler and faster processing.
+Slide 10: Hyperparameter Tuning and Optimization
+Title: Tuning the Model
+Key Points:
+SVM Parameters (HOG Model): Regularization parameter (C) tuned for the best performance.
+Neural Network Parameters (Deep Learning Model):
+Learning rate.
+Dropout rate for regularization.
+Best results obtained through experimentation and validation.
+Slide 11: Liveness Detection Integration
+Title: Liveness Detection
+Key Points:
+Liveness checks ensure the system is interacting with a live person, not an image or video.
+Techniques can include blink detection, motion tracking, or pulse detection via the camera.
+Enhances security by preventing spoofing attacks.
+Slide 12: Conclusion
+Key Points:
+Full body re-identification combined with liveness detection significantly enhances the security of authentication systems.
+Classical methods like HOG + SVM can be effective for smaller-scale tasks, but deep learning offers superior performance for large-scale, real-world applications.
+This approach addresses the vulnerabilities of traditional authentication methods, offering a more robust solution for secure data access.
+Slide 13: Future Work
+Key Points:
+Explore real-time implementation of liveness checks with camera feeds.
+Combine additional biometric factors, such as gait analysis, for more robust identification.
+Further optimize deep learning models for faster inference in low-resource environments.
 The method used here is called roulette wheel selection, also known as fitness-proportionate selection.
 The probability of selecting an individual is proportional to its fitness score. Individuals with higher fitness values (shorter paths) are more likely to be selected.
 A random value is generated in the range [0, total fitness], and individuals are selected based on where the random value falls within the cumulative fitness of the population.
